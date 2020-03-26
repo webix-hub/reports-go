@@ -13,7 +13,7 @@ var Config AppConfig
 // AppConfig contains app's configuration
 type AppConfig struct {
 	Server struct {
-		Port       string `default:":80"`
+		Port string `default:":80"`
 	}
 	DB struct {
 		User     string
@@ -31,6 +31,6 @@ func (c *AppConfig) LoadFromFile(url string) {
 	}
 }
 
-func (c* AppConfig) DataSourceName() string{
-	 return fmt.Sprintf("%s:%s@(%s)/%s", c.DB.User, c.DB.Password, c.DB.Host, c.DB.Database)
+func (c *AppConfig) DataSourceName() string {
+	return fmt.Sprintf("%s:%s@(%s)/%s", c.DB.User, c.DB.Password, c.DB.Host, c.DB.Database)
 }
