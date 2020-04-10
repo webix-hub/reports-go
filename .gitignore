@@ -1,4 +1,3 @@
 metadb
 .idea
-config.yml
-scheme.yml
+*.yml
