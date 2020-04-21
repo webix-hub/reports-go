@@ -17,6 +17,8 @@ github.com/unrolled/render v1.0.2 h1:dGS3EmChQP3yOi1YeFNO/Dx+MbWZhdvhQJTXochM5bs
 github.com/unrolled/render v1.0.2/go.mod h1:gN9T0NhL4Bfbwu8ann7Ry/TGHYfosul+J0obPf6NBdM=
 github.com/xbsoftware/querysql v0.0.0-20200410124823-ddd19a971eaa h1:ucgzFgKjBrLVW5RHk5LYbfio7dEjEChZV99wNA3A+xE=
 github.com/xbsoftware/querysql v0.0.0-20200410124823-ddd19a971eaa/go.mod h1:TPYawa9ecJej3aJAt3T0TDkChVZOEtO5QCRnbJtQC6s=
+github.com/xbsoftware/querysql v0.0.0-20200421095813-a067fd3e0ec4 h1:mn3SmbHDT63n2zUICtUKh7wtjrOAWSa1ZyWqsJm6WNU=
+github.com/xbsoftware/querysql v0.0.0-20200421095813-a067fd3e0ec4/go.mod h1:TPYawa9ecJej3aJAt3T0TDkChVZOEtO5QCRnbJtQC6s=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.2.2 h1:ZCJp+EgiOT7lHqUV2J862kp8Qj64Jo6az82+3Td9dZw=
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
