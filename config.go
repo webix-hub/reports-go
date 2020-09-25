@@ -15,7 +15,13 @@ type AppConfig struct {
 	Server struct {
 		Port string `default:":80"`
 	}
-	DB struct {
+	DataDB struct {
+		User     string
+		Host     string
+		Password string
+		Database string
+	}
+	AppDB struct {
 		User     string
 		Host     string
 		Password string
@@ -31,6 +37,10 @@ func (c *AppConfig) LoadFromFile(url string) {
 	}
 }
 
-func (c *AppConfig) DataSourceName() string {
-	return fmt.Sprintf("%s:%s@(%s)/%s", c.DB.User, c.DB.Password, c.DB.Host, c.DB.Database)
+func (c *AppConfig) DataDBSourceName() string {
+	return fmt.Sprintf("%s:%s@(%s)/%s", c.DataDB.User, c.DataDB.Password, c.DataDB.Host, c.DataDB.Database)
+}
+
+func (c *AppConfig) AppDBSourceName() string {
+	return fmt.Sprintf("%s:%s@(%s)/%s", c.AppDB.User, c.AppDB.Password, c.AppDB.Host, c.AppDB.Database)
 }

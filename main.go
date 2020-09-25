@@ -111,7 +111,8 @@ func main() {
 	flag.Parse()
 	Config.LoadFromFile("./config.yml")
 
-	db, err := sqlx.Connect("mysql", Config.DataSourceName())
+	db, err := sqlx.Connect("mysql", Config.DataDBSourceName())
+	appDB, err := sqlx.Connect("mysql", Config.AppDBSourceName())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,7 +141,6 @@ func main() {
 	for _, v := range pull {
 		objects = append(objects, v)
 	}
-
 
 	r.Post("/api/data/{table}", func(w http.ResponseWriter, r *http.Request) {
 		table := chi.URLParam(r, "table")
@@ -256,6 +256,9 @@ func main() {
 
 		format.JSON(w, 200, list)
 	})
+
+
+	queryAPI(r, appDB)
 
 	log.Printf("Start server at %s", Config.Server.Port)
 	http.ListenAndServe(Config.Server.Port, r)
