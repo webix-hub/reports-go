@@ -33,7 +33,7 @@ const (
 
 var fieldTypeNames = map[DBFieldType]string{
 	NumberField:    "number",
-	StringField:    "string",
+	StringField:    "text",
 	DateField:      "date",
 	BoolField:      "bool",
 	ReferenceField: "reference",
@@ -161,7 +161,7 @@ func main() {
 		format.JSON(w, 200, data)
 	})
 
-	r.Get("/api/data/{table}/{field}/suggest", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/api/objects/{table}/suggest/{field}", func(w http.ResponseWriter, r *http.Request) {
 		table := chi.URLParam(r, "table")
 		field := chi.URLParam(r, "field")
 
@@ -211,7 +211,7 @@ func main() {
 	})
 
 	// list of fields
-	r.Get("/api/fields/{object}", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/api/objects/{object}/fields", func(w http.ResponseWriter, r *http.Request) {
 		table, ok := pull[chi.URLParam(r, "object")]
 		if !ok {
 			format.Text(w, 404, "Object not found")
@@ -259,6 +259,7 @@ func main() {
 
 
 	queryAPI(r, appDB)
+	moduleAPI(r, appDB)
 
 	log.Printf("Start server at %s", Config.Server.Port)
 	http.ListenAndServe(Config.Server.Port, r)

@@ -9,7 +9,7 @@ import (
 
 type QueryData struct {
 	ID int `json:"id"`
-	ObjID int `db:"obj_id" json:"obj_id"`
+	ObjID string `db:"obj_id" json:"obj_id"`
 	Text string `json:"text"`
 	Name string `json:"name"`
 }
@@ -20,7 +20,7 @@ type QueryDataResponse struct {
 
 func queryAPI(r *chi.Mux, db *sqlx.DB){
 	r.Get("/api/objects/{oid}/queries", func(w http.ResponseWriter, r *http.Request) {
-		oid, _ := strconv.Atoi(chi.URLParam(r, "oid"))
+		oid := chi.URLParam(r, "oid")
 		temp := make([]QueryData, 0, 0)
 		err := db.Select(&temp, "SELECT * FROM queries WHERE obj_id = ?", oid)
 		if err != nil {
@@ -32,7 +32,7 @@ func queryAPI(r *chi.Mux, db *sqlx.DB){
 
 	r.Post("/api/objects/{oid}/queries", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		oid, _ := strconv.Atoi(chi.URLParam(r, "oid"))
+		oid := chi.URLParam(r, "oid")
 		name := r.Form.Get("name")
 		text := r.Form.Get("text")
 
@@ -52,7 +52,8 @@ func queryAPI(r *chi.Mux, db *sqlx.DB){
 	})
 
 	r.Put("/api/objects/{oid}/queries/{id}", func(w http.ResponseWriter, r *http.Request) {
-		oid, _ := strconv.Atoi(chi.URLParam(r, "oid"))
+		r.ParseForm()
+		oid := chi.URLParam(r, "oid")
 		id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 		name := r.Form.Get("name")
 		text := r.Form.Get("text")
@@ -67,7 +68,7 @@ func queryAPI(r *chi.Mux, db *sqlx.DB){
 	})
 
 	r.Delete("/api/objects/{oid}/queries/{id}", func(w http.ResponseWriter, r *http.Request) {
-		oid, _ := strconv.Atoi(chi.URLParam(r, "oid"))
+		oid := chi.URLParam(r, "oid")
 		id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
 		_, err := db.Exec("DELETE FROM queries WHERE obj_id = ? AND id = ?", oid, id)
