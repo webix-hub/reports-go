@@ -38,9 +38,9 @@ func (c *AppConfig) LoadFromFile(url string) {
 }
 
 func (c *AppConfig) DataDBSourceName() string {
-	return fmt.Sprintf("%s:%s@(%s)/%s", c.DataDB.User, c.DataDB.Password, c.DataDB.Host, c.DataDB.Database)
+	return fmt.Sprintf("%s:%s@(%s)/%s?parseTime=true", c.DataDB.User, c.DataDB.Password, c.DataDB.Host, c.DataDB.Database)
 }
 
 func (c *AppConfig) AppDBSourceName() string {
-	return fmt.Sprintf("%s:%s@(%s)/%s", c.AppDB.User, c.AppDB.Password, c.AppDB.Host, c.AppDB.Database)
+	return fmt.Sprintf("%s:%s@(%s)/%s?parseTime=true", c.AppDB.User, c.AppDB.Password, c.AppDB.Host, c.AppDB.Database)
 }

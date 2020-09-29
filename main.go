@@ -259,7 +259,7 @@ func main() {
 
 
 	queryAPI(r, appDB)
-	moduleAPI(r, appDB)
+	moduleAPI(r, appDB, db)
 
 	log.Printf("Start server at %s", Config.Server.Port)
 	http.ListenAndServe(Config.Server.Port, r)

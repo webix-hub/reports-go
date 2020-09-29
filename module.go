@@ -1,23 +1,38 @@
 package main
 
 import (
-"github.com/go-chi/chi"
-"github.com/jmoiron/sqlx"
-"net/http"
-"strconv"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/jmoiron/sqlx"
+	"github.com/xbsoftware/querysql"
 )
+
+type RawData map[string]interface{}
 
 type ModuleData struct {
 	ID int `json:"id"`
 	Text string `json:"text"`
 	Name string `json:"name"`
+	Updated time.Time `json:"updated"`
 }
 
 type ModuleDataResponse struct {
 	ID int `json:"id"`
 }
 
-func moduleAPI(r *chi.Mux, db *sqlx.DB){
+func bytesToString(m map[string]interface{}) {
+    for k,v := range m {
+    	b,ok := v.([]byte)
+        if ok {
+            m[k] = string(b)
+        }
+    }
+}
+
+func moduleAPI(r *chi.Mux, db *sqlx.DB, dataDB *sqlx.DB){
 	r.Get("/api/modules", func(w http.ResponseWriter, r *http.Request) {
 		temp := make([]ModuleData, 0, 0)
 		err := db.Select(&temp, "SELECT * FROM modules")
@@ -73,5 +88,54 @@ func moduleAPI(r *chi.Mux, db *sqlx.DB){
 		}
 
 		format.JSON(w, 200, ModuleDataResponse{id})
+	})
+
+	r.Post("/api/objects/{id}/data", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		id := chi.URLParam(r, "id")
+		query := []byte(r.Form.Get("query"))
+
+		var filter = querysql.Filter{}
+		var err error
+
+		if len(query) > 0 {
+			filter, err = querysql.FromJSON(query)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+		}
+
+		querySQL, data, err := querysql.GetSQL(filter, nil)
+		if err != nil {
+			format.Text(w, 500, err.Error())
+			return
+		}
+
+		sql := "select * from " + id
+		if querySQL != "" {
+			sql += " where " + querySQL
+		}
+
+		rows, err := dataDB.Queryx(sql, data...)
+		if err != nil {
+			format.Text(w, 500, err.Error())
+			return
+		}
+
+		t := make([]RawData, 0)
+		for rows.Next() {
+			res := make(map[string]interface{})
+			err = rows.MapScan(res)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+
+			bytesToString(res)
+			t = append(t, res)
+		}
+
+		format.JSON(w, 200, t)
 	})
 }

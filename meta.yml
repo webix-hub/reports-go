@@ -1,0 +1,56 @@
+persons:
+  id: persons
+  name: persons
+  fields:
+  - id: id
+    name: id
+    filter: true
+    type: number
+  - id: last_name
+    name: last_name
+    filter: true
+    type: text
+  - id: first_name
+    name: first_name
+    filter: true
+    type: text
+  - id: birthdate
+    name: birthdate
+    filter: true
+    type: date
+  - id: country
+    name: country
+    filter: true
+    type: text
+  - id: city
+    name: city
+    filter: true
+    type: text
+  - id: email
+    name: email
+    filter: true
+    type: text
+  - id: phone
+    name: phone
+    filter: true
+    type: text
+  - id: job
+    name: job
+    filter: true
+    type: text
+  - id: address
+    name: address
+    filter: true
+    type: text
+  - id: company_id
+    name: company_id
+    filter: true
+    type: number
+  - id: notify
+    name: notify
+    filter: true
+    type: number
+  - id: age
+    name: age
+    filter: true
+    type: number

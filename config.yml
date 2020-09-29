@@ -1,0 +1,12 @@
+server:
+  port: ":8014"
+datadb:
+  user: root
+  host: appdb
+  password: 1
+  database: reports
+appdb:
+  user: root
+  host: appdb
+  password: 1
+  database: reports
