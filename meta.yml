@@ -167,7 +167,7 @@ models:
       name: Product
       filter: true
       type: reference
-      ref: product
+      ref: products
 
 picklists:
   - id: regions
