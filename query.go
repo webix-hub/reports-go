@@ -8,17 +8,17 @@ import (
 )
 
 type QueryData struct {
-	ID int `json:"id"`
+	ID    int    `json:"id"`
 	ObjID string `db:"obj_id" json:"obj_id"`
-	Text string `json:"text"`
-	Name string `json:"name"`
+	Text  string `json:"text"`
+	Name  string `json:"name"`
 }
 
 type QueryDataResponse struct {
 	ID int `json:"id"`
 }
 
-func queryAPI(r *chi.Mux, db *sqlx.DB){
+func queryAPI(r *chi.Mux, db *sqlx.DB) {
 	r.Get("/api/objects/{oid}/queries", func(w http.ResponseWriter, r *http.Request) {
 		oid := chi.URLParam(r, "oid")
 		temp := make([]QueryData, 0, 0)
@@ -47,8 +47,7 @@ func queryAPI(r *chi.Mux, db *sqlx.DB){
 			return
 		}
 
-
-		format.JSON(w, 200, QueryDataResponse{ int(nid)})
+		format.JSON(w, 200, QueryDataResponse{int(nid)})
 	})
 
 	r.Put("/api/objects/{oid}/queries/{id}", func(w http.ResponseWriter, r *http.Request) {

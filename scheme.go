@@ -15,14 +15,31 @@ func writeToFile(f string, pull map[string]*DBObject) {
 	ioutil.WriteFile(f, scheme, 0777)
 }
 
-func readFromFile(f string) map[string]*DBObject {
+func readFromFile(f string) (map[string]*DBObject, map[string]*[]Pick) {
 	b, _ := ioutil.ReadFile(f)
+	info := DBInfo{}
+	yaml.Unmarshal(b, &info)
+
 	pull := make(map[string]*DBObject)
-	yaml.Unmarshal(b, &pull)
+	picks := make(map[string]*[]Pick)
+
+	for i := range info.Models {
+		for _, f := range info.Models[i].Fields {
+			if f.IsKey {
+				info.Models[i].Key = f.ID
+			}
+			if f.IsLabel {
+				info.Models[i].Label = f.ID
+			}
+		}
+		pull[info.Models[i].ID] = &info.Models[i]
+	}
+	for i := range info.Picklists {
+		picks[info.Picklists[i].ID] = &info.Picklists[i].Options
+	}
 
 	fixStringToType(pull)
-
-	return pull
+	return pull, picks
 }
 
 func fixStringToType(pull map[string]*DBObject) {
@@ -60,7 +77,6 @@ func readFromDB(db *sqlx.DB) map[string]*DBObject {
 				Name:     f.Field,
 				Type:     TypeToField(f.Type),
 				IsKey:    f.Key == "PRI",
-				Relation: nil,
 				Filter:   true,
 				Edit:     false,
 			}
@@ -78,9 +94,9 @@ func readFromDB(db *sqlx.DB) map[string]*DBObject {
 		for i, f := range table.Fields {
 			if strings.HasSuffix(f.Name, "_id") {
 				test := strings.TrimSuffix(f.Name, "_id")
-				if target, ok := pull[test]; ok {
+				if _, ok := pull[test]; ok {
 					// it seems we have an ID
-					f.Relation = &Relation{To: test, Name: getFirstStringLike(target)}
+					f.Ref = test
 					f.Type = ReferenceField
 				}
 

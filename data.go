@@ -1,60 +1,141 @@
 package main
 
 import (
+	"fmt"
+	"github.com/go-chi/chi"
 	"github.com/jmoiron/sqlx"
+	"github.com/xbsoftware/querysql"
 	"log"
+	"net/http"
+	"time"
 )
-import "github.com/xbsoftware/querysql"
 
-type PersonData struct {
-	A0 int `json:"id" db:"id"`
-	A1 string `json:"last_name" db:"last_name"`
-	A2 string `json:"first_name" db:"first_name"`
-	A3 string `json:"birthdate" db:"birthdate"`
-	A4 string `json:"country" db:"country"`
-	A5 string `json:"city" db:"city"`
-	A6 string `json:"email" db:"email"`
-	A7 string `json:"phone" db:"phone"`
-	A8 string `json:"job" db:"job"`
-	A9 string `json:"address" db:"address"`
-	A10 int `json:"company_id" db:"company_id"`
-	A11 int `json:"notify" db:"notify"`
-	A12 int `json:"age" db:"age"`
-}
+func dataAPI(r *chi.Mux, db *sqlx.DB) {
 
-func getDataFromDB(db *sqlx.DB, name string, body []byte) ([]interface{}, error) {
-	var filter = querysql.Filter{}
-	var err error
+	r.Get("/api/objects/{table}/fields/{field}/suggest", func(w http.ResponseWriter, r *http.Request) {
+		table := chi.URLParam(r, "table")
+		field := chi.URLParam(r, "field")
 
-	if len(body) > 0 {
-		filter, err = querysql.FromJSON(body)
+		f, err := getFieldInfo(table, field)
 		if err != nil {
-			return nil, err
+			format.Text(w, 500, err.Error())
+			return
 		}
-	}
 
-	query, data, err := querysql.GetSQL(filter, nil)
-	if err != nil {
-		return nil, err
-	}
+		sql := fmt.Sprintf("select distinct %s from %s ORDER BY %s ASC", field, table, field)
+		if f.Type == StringField {
+			out := make([]string, 0)
+			err := db.Select(&out, sql)
+			if err != nil {
+				fmt.Printf("%+v", err)
+			}
+			format.JSON(w, 200, out)
+			return
+		}
 
-	t := make([]PersonData, 0)
-	sql := "select * from " + name
-	if query != "" {
-		sql += " where "+query
-	}
+		if f.Type == NumberField {
+			out := make([]float64, 0)
+			err := db.Select(&out, sql)
+			if err != nil {
+				log.Printf("%+v", err)
+			}
+			format.JSON(w, 200, out)
+			return
+		}
 
-	log.Println(sql)
+		if f.Type == DateField {
+			out := make([]time.Time, 0)
+			err := db.Select(&out, sql)
+			if err != nil {
+				log.Printf("%+v", err)
+			}
+			format.JSON(w, 200, out)
+			return
+		}
 
-	err = db.Select(&t, sql, data...)
-	if err != nil {
-		return nil, err
-	}
+		format.JSON(w, 200, []string{})
+	})
 
-	 ret := make([]interface{}, len(t))
-	 for i := range t {
-	 	ret[i] = t[i]
-	 }
+	// options
+	r.Get("/api/objects/{table}/fields/{field}/options", func(w http.ResponseWriter, r *http.Request) {
+		table := chi.URLParam(r, "table")
+		field := chi.URLParam(r, "field")
 
-	 return ret, nil
+		f, err := getFieldInfo(table, field)
+		if err != nil {
+			format.Text(w, 500, err.Error())
+			return
+		}
+
+		if f.Type == PickListField {
+			format.JSON(w, 200, picks[f.Ref])
+			return
+		}
+
+		if f.Type != ReferenceField {
+			format.JSON(w, 200, []Pick{})
+			return
+		}
+
+		from := pull[f.Ref]
+		list := []Pick{}
+		sql := fmt.Sprintf("SELECT `%s` as id,`%s` as value FROM `%s`", from.Key, from.Label, f.Ref)
+		err = db.Select(&list, sql)
+		if err != nil {
+			format.Text(w, 500, err.Error())
+			return
+		}
+
+		format.JSON(w, 200, list)
+	})
+
+	r.Post("/api/objects/{id}/data", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		id := chi.URLParam(r, "id")
+		query := []byte(r.Form.Get("query"))
+
+		var filter = querysql.Filter{}
+		var err error
+
+		if len(query) > 0 {
+			filter, err = querysql.FromJSON(query)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+		}
+
+		querySQL, data, err := querysql.GetSQL(filter, nil)
+		if err != nil {
+			format.Text(w, 500, err.Error())
+			return
+		}
+
+		sql := "select * from " + id
+		if querySQL != "" {
+			sql += " where " + querySQL
+		}
+
+		rows, err := db.Queryx(sql, data...)
+		if err != nil {
+			format.Text(w, 500, err.Error())
+			return
+		}
+
+		t := make([]RawData, 0)
+		for rows.Next() {
+			res := make(map[string]interface{})
+			err = rows.MapScan(res)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+
+			bytesToString(res)
+			t = append(t, res)
+		}
+
+		format.JSON(w, 200, t)
+	})
+
 }
