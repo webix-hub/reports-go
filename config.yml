@@ -2,11 +2,11 @@ server:
   port: ":8014"
 datadb:
   user: root
-  host: appdb
+  host: localhost
   password: 1
-  database: reports
+  database: query
 appdb:
   user: root
-  host: appdb
+  host: localhost
   password: 1
   database: reports

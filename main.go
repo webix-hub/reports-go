@@ -56,16 +56,16 @@ type PickList struct {
 }
 
 type DBField struct {
-	ID       string    `json:"id"`
-	Name     string    `json:"name"`
-	Filter   bool      `yaml:",omitempty" json:"filter"`
-	Edit     bool      `yaml:",omitempty" json:"edit"`
-	TypeName string    `yaml:"type" json:"type"`
-	Ref string `json:"ref"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Filter   bool   `yaml:",omitempty" json:"filter"`
+	Edit     bool   `yaml:",omitempty" json:"edit"`
+	TypeName string `yaml:"type" json:"type"`
+	Ref      string `json:"ref"`
 
-	Type     DBFieldType `yaml:"-" json:"-"`
-	IsKey    bool        `yaml:"key,omitempty" json:"-"`
-	IsLabel  bool        `yaml:"label,omitempty" json:"-"`
+	Type    DBFieldType `yaml:"-" json:"-"`
+	IsKey   bool        `yaml:"key,omitempty" json:"-"`
+	IsLabel bool        `yaml:"label,omitempty" json:"-"`
 }
 
 type Relation struct {
@@ -76,12 +76,21 @@ func (d *DBField) GetTypeName() string {
 	return fieldTypeNames[d.Type]
 }
 
+type DBReference struct {
+	ID     int      `json:"id"`
+	Target string   `json:"target"`
+	Source string   `json:"source"`
+	Name   string   `json:"name"`
+	Field  *DBField `json:"-"`
+}
+
 type DBObject struct {
-	ID     string    `json:"id"`
-	Name   string    `json:"name"`
-	Fields []DBField `json:"-"`
-	Key string `yaml:"-" json:"-"`
-	Label string `yaml:"-" json:"-"`
+	ID         string        `json:"id"`
+	Name       string        `json:"name"`
+	Fields     []DBField     `json:"-"`
+	Key        string        `yaml:"-" json:"-"`
+	Label      string        `yaml:"-" json:"-"`
+	References []DBReference `yaml:"-" json:"refs"`
 }
 
 type DBInfo struct {

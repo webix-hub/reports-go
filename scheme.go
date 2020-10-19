@@ -22,32 +22,58 @@ func readFromFile(f string) (map[string]*DBObject, map[string]*[]Pick) {
 
 	pull := make(map[string]*DBObject)
 	picks := make(map[string]*[]Pick)
+	refs := make(map[string][]DBReference)
 
+	idCounter := 1
 	for i := range info.Models {
-		for _, f := range info.Models[i].Fields {
+		t := &info.Models[i]
+		for j := range info.Models[i].Fields {
+			f := &info.Models[i].Fields[j]
+
+			f.Type = backFieldTypeNames[t.Fields[j].TypeName]
 			if f.IsKey {
-				info.Models[i].Key = f.ID
+				t.Key = f.ID
 			}
 			if f.IsLabel {
-				info.Models[i].Label = f.ID
+				t.Label = f.ID
+			}
+
+			if f.Type == ReferenceField {
+				link := DBReference{ID: idCounter, Source: t.ID, Target: f.Ref, Field: &info.Models[i].Fields[j]}
+				idCounter += 1
+
+				if _, ok := refs[t.ID]; ok {
+					refs[t.ID] = append(refs[t.ID], link)
+				} else {
+					refs[t.ID] = []DBReference{link}
+				}
+
+				if _, ok := refs[f.Ref]; ok {
+					refs[f.Ref] = append(refs[f.Ref], link)
+				} else {
+					refs[f.Ref] = []DBReference{link}
+				}
 			}
 		}
+
 		pull[info.Models[i].ID] = &info.Models[i]
 	}
+
+	// store references on objects
+	for _, s := range pull {
+		s.References = refs[s.ID]
+		if s.References != nil {
+			for i, r := range s.References {
+				s.References[i].Name = r.Field.Name
+			}
+		}
+	}
+
 	for i := range info.Picklists {
 		picks[info.Picklists[i].ID] = &info.Picklists[i].Options
 	}
 
-	fixStringToType(pull)
 	return pull, picks
-}
-
-func fixStringToType(pull map[string]*DBObject) {
-	for _, table := range pull {
-		for i := range table.Fields {
-			table.Fields[i].Type = backFieldTypeNames[table.Fields[i].TypeName]
-		}
-	}
 }
 
 func fixTypeToString(pull map[string]*DBObject) {
@@ -73,12 +99,12 @@ func readFromDB(db *sqlx.DB) map[string]*DBObject {
 		fields := make([]DBField, len(temp))
 		for i, f := range temp {
 			fields[i] = DBField{
-				ID:       f.Field,
-				Name:     f.Field,
-				Type:     TypeToField(f.Type),
-				IsKey:    f.Key == "PRI",
-				Filter:   true,
-				Edit:     false,
+				ID:     f.Field,
+				Name:   f.Field,
+				Type:   TypeToField(f.Type),
+				IsKey:  f.Key == "PRI",
+				Filter: true,
+				Edit:   false,
 			}
 		}
 		pull[t] = &DBObject{
