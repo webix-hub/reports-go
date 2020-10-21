@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/jmoiron/sqlx"
@@ -80,6 +81,8 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 		from := pull[f.Ref]
 		list := []Pick{}
 		sql := fmt.Sprintf("SELECT `%s` as id,`%s` as value FROM `%s`", from.Key, from.Label, f.Ref)
+		fmt.Println(sql)
+
 		err = db.Select(&list, sql)
 		if err != nil {
 			format.Text(w, 500, err.Error())
@@ -93,12 +96,33 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 		r.ParseForm()
 		id := chi.URLParam(r, "id")
 		query := []byte(r.Form.Get("query"))
+		joins := []byte(r.Form.Get("joins"))
+		columns := []byte(r.Form.Get("columns"))
+		limit := r.Form.Get("limit")
 
-		var filter = querysql.Filter{}
 		var err error
 
+		var filter = querysql.Filter{}
 		if len(query) > 0 {
 			filter, err = querysql.FromJSON(query)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+		}
+
+		var joinsData = make([]Join, 0)
+		if len(joins) > 0 {
+			err = json.Unmarshal(joins, &joinsData)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+		}
+
+		var colsData = make([]string, 0)
+		if len(columns) > 0 {
+			err = json.Unmarshal(columns, &colsData)
 			if err != nil {
 				format.Text(w, 500, err.Error())
 				return
@@ -111,10 +135,15 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			return
 		}
 
-		sql := "select * from " + id
+		sql := SelectSQL(colsData) + FromSQL(id, joinsData)
 		if querySQL != "" {
 			sql += " where " + querySQL
 		}
+		if limit != "" {
+			sql += " limit " + limit
+		}
+
+		fmt.Println(sql)
 
 		rows, err := db.Queryx(sql, data...)
 		if err != nil {

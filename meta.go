@@ -9,7 +9,7 @@ import (
 func metaAPI(r *chi.Mux, db *sqlx.DB) {
 
 	r.Get("/api/objects", func(w http.ResponseWriter, r *http.Request) {
-		format.JSON(w, 200, objects)
+		format.JSON(w, 200, pull)
 	})
 
 	// list of fields

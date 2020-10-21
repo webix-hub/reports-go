@@ -87,7 +87,7 @@ type DBReference struct {
 type DBObject struct {
 	ID         string        `json:"id"`
 	Name       string        `json:"name"`
-	Fields     []DBField     `json:"-"`
+	Fields     []DBField     `json:"data"`
 	Key        string        `yaml:"-" json:"-"`
 	Label      string        `yaml:"-" json:"-"`
 	References []DBReference `yaml:"-" json:"refs"`
@@ -121,7 +121,6 @@ var saveScheme = flag.String("save", "", "import scheme from DB and save to the 
 var loadScheme = flag.String("scheme", "scheme.yml", "path to file with scheme config")
 
 var pull map[string]*DBObject
-var objects []*DBObject
 var picks map[string]*[]Pick
 
 func main() {
@@ -153,12 +152,6 @@ func main() {
 		MaxAge:           300,
 	})
 	r.Use(cors.Handler)
-
-	// list of tables
-	objects = make([]*DBObject, 0, len(pull))
-	for _, v := range pull {
-		objects = append(objects, v)
-	}
 
 	metaAPI(r, appDB)
 	dataAPI(r, db)
