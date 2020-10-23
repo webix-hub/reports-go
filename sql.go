@@ -17,9 +17,9 @@ func FromSQL(source string, joins []Join) string {
 		if sid == "" {
 			sid = pull[j.Source].Key
 		}
-		tid := j.SourceField
+		tid := j.TargetField
 		if tid == "" {
-			tid = pull[j.Source].Key
+			tid = pull[j.Target].Key
 		}
 
 		source += fmt.Sprintf(" inner join %s on %s.%s = %s.%s ", j.Target, j.Source, sid, j.Target, tid)

@@ -65,7 +65,7 @@ type DBField struct {
 
 	Type    DBFieldType `yaml:"-" json:"-"`
 	IsKey   bool        `yaml:"key,omitempty" json:"-"`
-	IsLabel bool        `yaml:"label,omitempty" json:"-"`
+	IsLabel bool        `yaml:"label,omitempty" json:"show"`
 }
 
 type Relation struct {
@@ -143,6 +143,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(middleware.Compress(5))
 
 	cors := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

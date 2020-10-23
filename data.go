@@ -8,14 +8,17 @@ import (
 	"github.com/xbsoftware/querysql"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
 func dataAPI(r *chi.Mux, db *sqlx.DB) {
 
-	r.Get("/api/objects/{table}/fields/{field}/suggest", func(w http.ResponseWriter, r *http.Request) {
-		table := chi.URLParam(r, "table")
-		field := chi.URLParam(r, "field")
+	r.Get("/api/fields/{name}/suggest", func(w http.ResponseWriter, r *http.Request) {
+		name := chi.URLParam(r, "name")
+		parts := strings.Split(name, ".")
+		table := parts[0]
+		field := parts[1]
 
 		f, err := getFieldInfo(table, field)
 		if err != nil {
@@ -58,9 +61,12 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 	})
 
 	// options
-	r.Get("/api/objects/{table}/fields/{field}/options", func(w http.ResponseWriter, r *http.Request) {
-		table := chi.URLParam(r, "table")
-		field := chi.URLParam(r, "field")
+	r.Get("/api/fields/{name}/options", func(w http.ResponseWriter, r *http.Request) {
+		name := chi.URLParam(r, "name")
+		parts := strings.Split(name, ".")
+		table := parts[0]
+		field := parts[1]
+
 
 		f, err := getFieldInfo(table, field)
 		if err != nil {
