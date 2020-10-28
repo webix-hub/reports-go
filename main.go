@@ -64,7 +64,7 @@ type DBField struct {
 	Ref      string `json:"ref"`
 
 	Type    DBFieldType `yaml:"-" json:"-"`
-	IsKey   bool        `yaml:"key,omitempty" json:"-"`
+	IsKey   bool        `yaml:"key,omitempty" json:"key"`
 	IsLabel bool        `yaml:"label,omitempty" json:"show"`
 }
 
