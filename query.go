@@ -8,9 +8,9 @@ import (
 )
 
 type QueryData struct {
-	ID    int    `json:"id"`
-	Text  string `json:"text"`
-	Name  string `json:"name"`
+	ID   int    `json:"id"`
+	Text string `json:"text"`
+	Name string `json:"name"`
 }
 
 type QueryDataResponse struct {

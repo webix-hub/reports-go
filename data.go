@@ -67,7 +67,6 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 		table := parts[0]
 		field := parts[1]
 
-
 		f, err := getFieldInfo(table, field)
 		if err != nil {
 			format.Text(w, 500, err.Error())
@@ -104,6 +103,7 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 		query := []byte(r.Form.Get("query"))
 		joins := []byte(r.Form.Get("joins"))
 		columns := []byte(r.Form.Get("columns"))
+		group := []byte(r.Form.Get("group"))
 		limit := r.Form.Get("limit")
 
 		var err error
@@ -126,6 +126,15 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 		}
 
+		var groupData = make([]string, 0)
+		if len(group) > 0 {
+			err = json.Unmarshal(group, &groupData)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+		}
+
 		var colsData = make([]string, 0)
 		if len(columns) > 0 {
 			err = json.Unmarshal(columns, &colsData)
@@ -141,9 +150,12 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			return
 		}
 
-		sql := SelectSQL(colsData) + FromSQL(id, joinsData)
+		sql := SelectSQL(colsData, id, pull[id].Key) + FromSQL(id, joinsData)
 		if querySQL != "" {
 			sql += " where " + querySQL
+		}
+		if len(groupData) > 0 {
+			sql += " group by " + GroupSQL(groupData)
 		}
 		if limit != "" {
 			sql += " limit " + limit
