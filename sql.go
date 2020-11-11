@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+type Sort struct {
+	Field string `json:"id"`
+	Direction string `json:"dir"`
+}
+
 type Join struct {
 	Source      string `json:"sid"`
 	Target      string `json:"tid"`
@@ -12,7 +17,7 @@ type Join struct {
 	TargetField string `json:"tf"`
 }
 
-func FromSQL(source string, joins []Join) string {
+func FromSQL(source string, joins []Join, allowed map[string]bool) string {
 	source = " from " + source
 
 	for _, j := range joins {
@@ -25,31 +30,65 @@ func FromSQL(source string, joins []Join) string {
 			tid = pull[j.Target].Key
 		}
 
+		if !allowed[j.Target+"."+tid] || !allowed[j.Source+"."+sid] {
+			continue
+		}
+
 		source += fmt.Sprintf(" inner join %s on %s.%s = %s.%s ", j.Target, j.Source, sid, j.Target, tid)
 	}
 
 	return source
 }
 
-func GroupSQL(by []string) string {
+func SortSQL(by []Sort, allowed map[string]bool) string {
+	out := ""
+	for _, c := range by {
+		if !allowed[c.Field] {
+			continue
+		}
+
+		var order string
+		if c.Direction == "asc" {
+			order = "ASC"
+		} else {
+			order = "DESC"
+		}
+
+
+
+		out += fmt.Sprintf(", `%s` %s", c.Field, order)
+	}
+
+	return out[1:]
+}
+
+func GroupSQL(by []string, allowed map[string]bool) string {
 	out := ""
 	for _, c := range by {
 		parts := strings.Split(c, ".")
+		if len(parts) < 2 {
+			continue
+		}
+
 		switch len(parts) {
-		case 3:
+		case 2:
+			if !allowed[parts[0]+"."+parts[1]] {
+				continue
+			}
+			out += fmt.Sprintf(", `%s`.`%s`", parts[0], parts[1])
+		default:
+			if !allowed[parts[1]+"."+parts[2]] {
+				continue
+			}
 			opStart, opEnd := sqlOperator(parts[0])
 			out += fmt.Sprintf(", %s`%s`.`%s`%s", opStart, parts[1], parts[2], opEnd)
-		case 2:
-			out += fmt.Sprintf(", `%s`.`%s`", parts[0], parts[1])
-		case 1:
-			out += fmt.Sprintf(", `%s`", parts[0])
 		}
 	}
 
 	return out[1:]
 }
 
-func SelectSQL(columns []string, table, key string) string {
+func SelectSQL(columns []string, table, key string, allowed map[string]bool) string {
 	out := ""
 	for _, c := range columns {
 		var parts []string
@@ -59,14 +98,22 @@ func SelectSQL(columns []string, table, key string) string {
 			parts = strings.Split(c, ".")
 		}
 
+		if len(parts) < 2 {
+			continue
+		}
+
 		switch len(parts) {
-		case 3:
+		case 2:
+			if !allowed[parts[0]+"."+parts[1]] {
+				continue
+			}
+			out += fmt.Sprintf(", `%s`.`%s` as `%s`", parts[0], parts[1], c)
+		default:
+			if len(parts) < 2 || !allowed[parts[1]+"."+parts[2]] {
+				continue
+			}
 			opStart, opEnd := aggregateOperator(parts[0])
 			out += fmt.Sprintf(", %s`%s`.`%s`%s as `%s`", opStart, parts[1], parts[2], opEnd, c)
-		case 2:
-			out += fmt.Sprintf(", `%s`.`%s` as `%s`", parts[0], parts[1], c)
-		case 1:
-			out += fmt.Sprintf(", `%s` as `%s`", parts[0], c)
 		}
 	}
 	return fmt.Sprintf("select %s ", out[1:])

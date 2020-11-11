@@ -14,6 +14,16 @@ import (
 
 func dataAPI(r *chi.Mux, db *sqlx.DB) {
 
+
+	allowed := make(map[string]bool);
+	for _, t := range pull {
+		for _, f := range t.Fields {
+			allowed[t.ID+"."+f.ID] = true
+		}
+	}
+
+	queryConfig := querysql.SQLConfig{ Whitelist: allowed }
+
 	r.Get("/api/fields/{name}/suggest", func(w http.ResponseWriter, r *http.Request) {
 		name := chi.URLParam(r, "name")
 		parts := strings.Split(name, ".")
@@ -104,6 +114,7 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 		joins := []byte(r.Form.Get("joins"))
 		columns := []byte(r.Form.Get("columns"))
 		group := []byte(r.Form.Get("group"))
+		sort := []byte(r.Form.Get("sort"))
 		limit := r.Form.Get("limit")
 
 		var err error
@@ -144,18 +155,37 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 		}
 
-		querySQL, data, err := querysql.GetSQL(filter, nil)
-		if err != nil {
-			format.Text(w, 500, err.Error())
-			return
+		var sortData = make([]Sort, 0)
+		if len(sort) > 0 {
+			err = json.Unmarshal(sort, &sortData)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
 		}
 
-		sql := SelectSQL(colsData, id, pull[id].Key) + FromSQL(id, joinsData)
+
+		var querySQL string
+		var data []interface{}
+
+		// [FIXME] fails for empty filter with whitelist, need to be fixed in querysql
+		if filter.Kids != nil || filter.Field != "" {
+			querySQL, data, err = querysql.GetSQL(filter, &queryConfig)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+		}
+
+		sql := SelectSQL(colsData, id, pull[id].Key, allowed) + FromSQL(id, joinsData, allowed)
 		if querySQL != "" {
 			sql += " where " + querySQL
 		}
+		if len(sortData) > 0 {
+			sql += " order by " + SortSQL(sortData, allowed)
+		}
 		if len(groupData) > 0 {
-			sql += " group by " + GroupSQL(groupData)
+			sql += " group by " + GroupSQL(groupData, allowed)
 		}
 		if limit != "" {
 			sql += " limit " + limit
