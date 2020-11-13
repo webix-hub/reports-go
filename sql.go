@@ -7,7 +7,7 @@ import (
 
 type Sort struct {
 	Field string `json:"id"`
-	Direction string `json:"dir"`
+	Direction string `json:"mod"`
 }
 
 type Join struct {
@@ -43,7 +43,8 @@ func FromSQL(source string, joins []Join, allowed map[string]bool) string {
 func SortSQL(by []Sort, allowed map[string]bool) string {
 	out := ""
 	for _, c := range by {
-		if !allowed[c.Field] {
+		dbName := getDBName(c.Field)
+		if !allowed[dbName] {
 			continue
 		}
 
@@ -57,6 +58,10 @@ func SortSQL(by []Sort, allowed map[string]bool) string {
 
 
 		out += fmt.Sprintf(", `%s` %s", c.Field, order)
+	}
+
+	if len(out) == 0 {
+		return ""
 	}
 
 	return out[1:]
@@ -83,6 +88,10 @@ func GroupSQL(by []string, allowed map[string]bool) string {
 			opStart, opEnd := sqlOperator(parts[0])
 			out += fmt.Sprintf(", %s`%s`.`%s`%s", opStart, parts[1], parts[2], opEnd)
 		}
+	}
+
+	if len(out) == 0 {
+		return ""
 	}
 
 	return out[1:]
@@ -151,4 +160,16 @@ func sqlOperator(code string) (string, string) {
 	default:
 		return "", ""
 	}
+}
+
+func getDBName(n string) string {
+	if strings.Count(n, "`") > 0 {
+		return ""
+	}
+
+	if strings.Count(n, ".") == 2 {
+		return n[strings.Index(n, ".")+1:]
+	}
+
+	return n
 }

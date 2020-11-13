@@ -181,11 +181,11 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 		if querySQL != "" {
 			sql += " where " + querySQL
 		}
-		if len(sortData) > 0 {
-			sql += " order by " + SortSQL(sortData, allowed)
-		}
 		if len(groupData) > 0 {
 			sql += " group by " + GroupSQL(groupData, allowed)
+		}
+		if len(sortData) > 0 {
+			sql += " order by " + SortSQL(sortData, allowed)
 		}
 		if limit != "" {
 			sql += " limit " + limit
