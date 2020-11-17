@@ -162,6 +162,12 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 				format.Text(w, 500, err.Error())
 				return
 			}
+
+			for _, s := range sortData {
+				if !containString(colsData, s.Field) {
+					colsData = append(colsData, s.Field)
+				}
+			}
 		}
 
 
@@ -215,4 +221,14 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 		format.JSON(w, 200, t)
 	})
 
+}
+
+
+func containString(s []string, e string) bool {
+    for _, a := range s {
+        if a == e {
+            return true
+        }
+    }
+    return false
 }

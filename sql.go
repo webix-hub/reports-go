@@ -55,8 +55,6 @@ func SortSQL(by []Sort, allowed map[string]bool) string {
 			order = "DESC"
 		}
 
-
-
 		out += fmt.Sprintf(", `%s` %s", c.Field, order)
 	}
 
