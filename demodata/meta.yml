@@ -1,0 +1,124 @@
+models:
+  - id: persons
+    name: Persons
+    fields:
+    - id: id
+      name: ID
+      filter: true
+      type: number
+      key: true
+    - id: name
+      name: Name
+      filter: true
+      type: text
+      label: true
+    - id: email
+      name: Email
+      filter: true
+      type: text
+    - id: age
+      name: Age
+      filter: true
+      type: number
+    - id: job
+      name: Job Title
+      filter: true
+      type: text
+    - id: address
+      name: Address
+      filter: true
+    type: text
+
+  - id: places
+    name: Places
+    fields:
+    - id: id
+      name: ID
+      filter: true
+      type: number
+      key: true
+    - id: name
+      name: Name
+      filter: true
+      type: text
+      label: true
+    - id: region
+      name: Region
+      filter: true
+      type: text
+    - id: created
+      name: Created On
+      filter: true
+      type: date
+
+  - id: products
+    name: Products
+    fields:
+    - id: id
+      name: ID
+      filter: true
+      type: number
+      key: true
+    - id: name
+      name: Name
+      filter: true
+      type: text
+      label: true
+    - id: type
+      name: Type
+      filter: true
+      type: text
+    - id: price
+      name: Price
+      filter: true
+      type: number
+
+  - id: sales
+    name: Sales
+    fields:
+    - id: id
+      name: ID
+      filter: true
+      type: number
+      key: true
+    - id: saledate
+      name: Sale Date
+      filter: true
+      type: date
+    - id: place_id
+      name: Place
+      filter: true
+      type: reference
+      ref: places
+    - id: count
+      name: Count
+      filter: true
+      type: number
+    - id: product_id
+      name: Product
+      filter: true
+      type: reference
+      ref: products
+    - id: total
+      name: Total
+      filter: true
+      type: number
+      label: true
+    - id: customer_id
+      name: Customer
+      filter: true
+      type: reference
+      ref: persons
+    - id: type
+      name: Payment
+      filter: true
+      type: picklist
+      ref: regions
+
+picklists:
+  - id: regions
+    options:
+      - id: 1
+        value: By Card
+      - id: 2
+        value: By Cash

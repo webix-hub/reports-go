@@ -10,6 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/unrolled/render"
 	"log"
+	"metadb/demodata"
 	"net/http"
 )
 
@@ -90,7 +91,7 @@ type DBObject struct {
 	Fields     []DBField     `json:"data"`
 	Key        string        `yaml:"-" json:"-"`
 	Label      string        `yaml:"-" json:"-"`
-	References []DBReference `yaml:"-" json:"refs"`
+	References []DBReference `yaml:"-" json:"refs,omitempty"`
 }
 
 type DBInfo struct {
@@ -119,6 +120,7 @@ type MySQLField struct {
 
 var saveScheme = flag.String("save", "", "import scheme from DB and save to the file")
 var loadScheme = flag.String("scheme", "scheme.yml", "path to file with scheme config")
+var initDemo = flag.Bool("demodata", false, "fill DB with demo data")
 
 var pull map[string]*DBObject
 var picks map[string]*[]Pick
@@ -129,13 +131,37 @@ func main() {
 	Config.LoadFromFile("./config.yml")
 
 	db, err := sqlx.Connect("mysql", Config.DataDBSourceName())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	appDB, err := sqlx.Connect("mysql", Config.AppDBSourceName())
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	err = InitDB(appDB)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if *saveScheme != "" {
 		pull := readFromDB(db)
 		writeToFile(*saveScheme, pull)
+		return
+	}
+
+	if *initDemo {
+		err := demodata.InitDB(db)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = demodata.InitReports(appDB)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		return
 	}
 

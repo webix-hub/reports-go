@@ -134,8 +134,8 @@ func aggregateOperator(code string) (string, string) {
 		return "MAX(", ")"
 	case "min":
 		return "MIN(", ")"
-	case "average":
-		return "AVERAGE(", ")"
+	case "avg":
+		return "AVG(", ")"
 	case "count":
 		return "COUNT(", ")"
 	default:

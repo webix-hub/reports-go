@@ -11,7 +11,13 @@ import (
 
 func writeToFile(f string, pull map[string]*DBObject) {
 	fixTypeToString(pull)
-	scheme, _ := yaml.Marshal(pull)
+
+	info := DBInfo{}
+	for _, s := range pull {
+		info.Models = append(info.Models, *s)
+	}
+
+	scheme, _ := yaml.Marshal(info)
 	ioutil.WriteFile(f, scheme, 0777)
 }
 
@@ -100,7 +106,7 @@ func readFromDB(db *sqlx.DB) map[string]*DBObject {
 		for i, f := range temp {
 			fields[i] = DBField{
 				ID:     f.Field,
-				Name:   f.Field,
+				Name:   strings.TrimRight(f.Field, "_id"),
 				Type:   TypeToField(f.Type),
 				IsKey:  f.Key == "PRI",
 				Filter: true,
@@ -117,17 +123,33 @@ func readFromDB(db *sqlx.DB) map[string]*DBObject {
 
 	// fix relations
 	for _, table := range pull {
+		hasLabel := false
 		for i, f := range table.Fields {
-			if strings.HasSuffix(f.Name, "_id") {
+			if strings.HasSuffix(f.ID, "_id") {
 				test := strings.TrimSuffix(f.Name, "_id")
 				if _, ok := pull[test]; ok {
 					// it seems we have an ID
-					f.Ref = test
-					f.Type = ReferenceField
+					table.Fields[i].Ref = test
+					table.Fields[i].Type = ReferenceField
+				} else if _, ok := pull[test+"s"]; ok {
+					// it seems we have an ID
+					table.Fields[i].Ref = test
+					table.Fields[i].Type = ReferenceField
+				} else if _, ok := pull[test+"es"]; ok {
+					// it seems we have an ID
+					table.Fields[i].Ref = test
+					table.Fields[i].Type = ReferenceField
 				}
-
-				table.Fields[i] = f
 			}
+
+			if f.Type == StringField && !hasLabel {
+				table.Fields[i].IsLabel = true
+				hasLabel = true
+			}
+		}
+
+		if !hasLabel {
+			table.Fields[0].IsLabel = true
 		}
 	}
 
@@ -147,7 +169,9 @@ func TypeToField(t string) DBFieldType {
 	if strings.HasPrefix(t, "int") {
 		return NumberField
 	}
-
+	if strings.HasPrefix(t, "decimal") {
+		return NumberField
+	}
 	if strings.HasPrefix(t, "date") {
 		return DateField
 	}
