@@ -1,34 +1,53 @@
-Data Query engine
-=======
+Webix Reports backend
+=====================
 
+### How to start
 
-### How to use
+- configure DB connection strings in ```config.yml```
+There are two databases there, ```appdb``` where report's configuration will be stored
+and ```datadb``` where data to analise is stored.
+It can be the same database.   
 
-Generate schema
-
-```bash
-metadb -save ./scheme.yml
+- start the service
+```shell script
+# generate test data, optional
+metadb --demodata
+# run the service
+metadb --scheme ./demodata/meta.yml
 ```
 
-Run query engine
+- update client side sample to use your backend ( change url property to  ```http://localhost:8014``` )
 
-```bash
-metadb -config ./scheme.yml
-```
+### Schema configuration
 
+Schema for the demodata is stored in the demodata/scheme.yml
 
-### REST API
+This file describes available objects, their fields and relations.
+Content of the file is a serialization of DBInfo structure from the main.go file. 
 
-#### Get all data from the tablesave
+#### Field type
 
-```
-POST /api/data/{table}
-```
+Supported fields types are
 
-Body can contain a filtering query
+- number
+- date
+- string
+- picklist ( list of hardcoded options )
+- reference ( key to a different model )
 
-#### Get unique field values
+#### Field configuration keys
 
-```
-GET /api/data/{table}/{field}/suggest
+- name - name shown in report builder
+- filter - true/false, allow/deny filtering by the field
+- key - true/false, primary key ( used for references )
+- label -  true/false, mark field as object label ( will be shown in place of reference )
+- ref - id of referenced model/picklist ( if any )
+
+### Other CLI command
+
+```shell script
+# show cli help
+./metadb --help
+# generate meta.yml from DB
+./metadb --save ./meta.yml
 ```
