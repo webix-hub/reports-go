@@ -137,10 +137,7 @@ func InitReports(db *sqlx.DB) error {
 	}
 
 	for _, q := range queries {
-		_, err := db.Exec(q)
-		if err != nil {
-			return err
-		}
+		db.Exec(q)
 	}
 
 	return nil

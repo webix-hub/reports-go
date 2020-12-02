@@ -119,7 +119,7 @@ type MySQLField struct {
 }
 
 var saveScheme = flag.String("save", "", "import scheme from DB and save to the file")
-var loadScheme = flag.String("scheme", "scheme.yml", "path to file with scheme config")
+var loadScheme = flag.String("scheme", "", "path to file with scheme config")
 var initDemo = flag.Bool("demodata", false, "fill DB with demo data")
 
 var pull map[string]*DBObject
@@ -145,13 +145,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if *saveScheme != "" {
-		pull := readFromDB(db)
-		writeToFile(*saveScheme, pull)
-		return
-	}
-
-	if *initDemo {
+		if *initDemo {
 		err := demodata.InitDB(db)
 		if err != nil {
 			log.Fatal(err)
@@ -162,6 +156,14 @@ func main() {
 			log.Fatal(err)
 		}
 
+		if *loadScheme == "" && *saveScheme == ""{
+			return
+		}
+	}
+
+	if *saveScheme != "" {
+		pull := readFromDB(db)
+		writeToFile(*saveScheme, pull)
 		return
 	}
 

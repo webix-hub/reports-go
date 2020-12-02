@@ -4,21 +4,29 @@ services:
     build: .
     restart: always
     image: registry.webix.io/reports-go
+    environment:
+      CONFIGOR_ENV_PREFIX: "APP"
+      APP_SERVER_PORT: ":8014"
+      APP_APPDB_USER: root
+      APP_APPDB_PASSWORD: 1
+      APP_APPDB_HOST: appdb
+      APP_APPDB_DATABASE: reports
+      APP_DATADB_USER: root
+      APP_DATADB_PASSWORD: 1
+      APP_DATADB_HOST: appdb
+      APP_DATADB_DATABASE: reports
     volumes:
-      - ./config.yml:/app/config.yml
-      - ./meta.yml:/app/meta.yml
+      - ./demodata/meta.yml:/app/meta.yml
     ports:
       - 8014:8014
     links:
       - db:appdb
-    command: /app/metadb --scheme /app/meta.yml
+    command: /app/metadb --demodata --scheme /app/meta.yml
 
 
   db:
     restart: always
     image: mysql:8.0
-    volumes:
-      - ./sql:/docker-entrypoint-initdb.d
     environment:
       - "MYSQL_ROOT_PASSWORD=1"
       - "MYSQL_DATABASE=reports"
