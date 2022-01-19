@@ -3,26 +3,36 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi"
-	"github.com/jmoiron/sqlx"
-	"github.com/xbsoftware/querysql"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/jmoiron/sqlx"
+	"github.com/xbsoftware/querysql"
 )
+
+type Option struct {
+	Id     string   `json:"id"`
+	Values []string `json:"values"`
+}
+
+type Bucket struct {
+	BucketColumn string   `json:"column"`
+	Options      []Option `json:"options"`
+}
 
 func dataAPI(r *chi.Mux, db *sqlx.DB) {
 
-
-	allowed := make(map[string]bool);
+	allowed := make(map[string]bool)
 	for _, t := range pull {
 		for _, f := range t.Fields {
 			allowed[t.ID+"."+f.ID] = true
 		}
 	}
 
-	queryConfig := querysql.SQLConfig{ Whitelist: allowed }
+	queryConfig := querysql.SQLConfig{Whitelist: allowed}
 
 	r.Get("/api/fields/{name}/suggest", func(w http.ResponseWriter, r *http.Request) {
 		name := chi.URLParam(r, "name")
@@ -114,6 +124,7 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 		joins := []byte(r.Form.Get("joins"))
 		columns := []byte(r.Form.Get("columns"))
 		group := []byte(r.Form.Get("group"))
+		buckets := []byte(r.Form.Get("buckets"))
 		sort := []byte(r.Form.Get("sort"))
 		limit := r.Form.Get("limit")
 
@@ -146,6 +157,15 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 		}
 
+		var bucketsData = make([]Bucket, 0)
+		if len(buckets) > 0 {
+			err = json.Unmarshal(buckets, &bucketsData)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+		}
+
 		var colsData = make([]string, 0)
 		if len(columns) > 0 {
 			err = json.Unmarshal(columns, &colsData)
@@ -170,7 +190,6 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 		}
 
-
 		var querySQL string
 		var data []interface{}
 
@@ -183,12 +202,12 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 		}
 
-		sql := SelectSQL(colsData, id, pull[id].Key, allowed) + FromSQL(id, joinsData, allowed)
+		sql := SelectSQL(colsData, bucketsData, id, pull[id].Key, allowed) + FromSQL(id, joinsData, allowed)
 		if querySQL != "" {
 			sql += " where " + querySQL
 		}
 		if len(groupData) > 0 {
-			sql += " group by " + GroupSQL(groupData, allowed)
+			sql += " group by " + GroupSQL(groupData, bucketsData, allowed)
 		}
 		if len(sortData) > 0 {
 			sql += " order by " + SortSQL(sortData, allowed)
@@ -223,12 +242,11 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 
 }
 
-
 func containString(s []string, e string) bool {
-    for _, a := range s {
-        if a == e {
-            return true
-        }
-    }
-    return false
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

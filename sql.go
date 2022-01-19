@@ -6,7 +6,7 @@ import (
 )
 
 type Sort struct {
-	Field string `json:"id"`
+	Field     string `json:"id"`
 	Direction string `json:"mod"`
 }
 
@@ -65,7 +65,7 @@ func SortSQL(by []Sort, allowed map[string]bool) string {
 	return out[1:]
 }
 
-func GroupSQL(by []string, allowed map[string]bool) string {
+func GroupSQL(by []string, buckets []Bucket, allowed map[string]bool) string {
 	out := ""
 	for _, c := range by {
 		parts := strings.Split(c, ".")
@@ -78,13 +78,21 @@ func GroupSQL(by []string, allowed map[string]bool) string {
 			if !allowed[parts[0]+"."+parts[1]] {
 				continue
 			}
-			out += fmt.Sprintf(", `%s`.`%s`", parts[0], parts[1])
+			if hasColumn(c, buckets) {
+				out += fmt.Sprintf(", `%s.%s`", parts[0], parts[1])
+			} else {
+				out += fmt.Sprintf(", `%s`.`%s`", parts[0], parts[1])
+			}
 		default:
 			if !allowed[parts[1]+"."+parts[2]] {
 				continue
 			}
 			opStart, opEnd := sqlOperator(parts[0])
-			out += fmt.Sprintf(", %s`%s`.`%s`%s", opStart, parts[1], parts[2], opEnd)
+			if hasColumn(c, buckets) {
+				out += fmt.Sprintf(", %s`%s.%s`%s", opStart, parts[1], parts[2], opEnd)
+			} else {
+				out += fmt.Sprintf(", %s`%s`.`%s`%s", opStart, parts[1], parts[2], opEnd)
+			}
 		}
 	}
 
@@ -95,12 +103,17 @@ func GroupSQL(by []string, allowed map[string]bool) string {
 	return out[1:]
 }
 
-func SelectSQL(columns []string, table, key string, allowed map[string]bool) string {
+func SelectSQL(columns []string, buckets []Bucket, table, key string, allowed map[string]bool) string {
 	out := ""
+
 	for _, c := range columns {
+		if hasColumn(c, buckets) {
+			continue
+		}
+
 		var parts []string
-		if c == "count."{
-			parts = []string{ "count", table, key }
+		if c == "count." {
+			parts = []string{"count", table, key}
 		} else {
 			parts = strings.Split(c, ".")
 		}
@@ -123,6 +136,25 @@ func SelectSQL(columns []string, table, key string, allowed map[string]bool) str
 			out += fmt.Sprintf(", %s`%s`.`%s`%s as `%s`", opStart, parts[1], parts[2], opEnd, c)
 		}
 	}
+
+	if len(buckets) > 0 {
+		for _, b := range buckets {
+			if !hasBucket(b, columns) {
+				continue
+			}
+			out += ", case "
+			for _, o := range b.Options {
+				if o.Values == nil {
+					out += fmt.Sprintf("else '%s' ", o.Id)
+					break
+				} else {
+					out += fmt.Sprintf("when %s in ('%s') then '%s' ", b.BucketColumn, strings.Join(o.Values, "','"), o.Id)
+				}
+			}
+			out += fmt.Sprintf(" end as `%s` ", b.BucketColumn)
+		}
+	}
+
 	return fmt.Sprintf("select %s ", out[1:])
 }
 
@@ -170,4 +202,22 @@ func getDBName(n string) string {
 	}
 
 	return n
+}
+
+func hasColumn(column string, buckets []Bucket) bool {
+	for _, b := range buckets {
+		if b.BucketColumn == column {
+			return true
+		}
+	}
+	return false
+}
+
+func hasBucket(bucket Bucket, columns []string) bool {
+	for _, c := range columns {
+		if c == bucket.BucketColumn {
+			return true
+		}
+	}
+	return false
 }
