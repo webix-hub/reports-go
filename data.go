@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,11 @@ type Option struct {
 type Bucket struct {
 	BucketColumn string   `json:"column"`
 	Options      []Option `json:"options"`
+}
+
+type Facet struct {
+	Column string
+	Value  interface{}
 }
 
 func dataAPI(r *chi.Mux, db *sqlx.DB) {
@@ -126,6 +132,7 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 		group := []byte(r.Form.Get("group"))
 		buckets := []byte(r.Form.Get("buckets"))
 		sort := []byte(r.Form.Get("sort"))
+		facets := []byte(r.Form.Get("facets"))
 		limit := r.Form.Get("limit")
 
 		var err error
@@ -190,6 +197,15 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 		}
 
+		var facetData = make([]string, 0)
+		if len(facets) > 0 {
+			err = json.Unmarshal(facets, &facetData)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return
+			}
+		}
+
 		var querySQL string
 		var data []interface{}
 
@@ -202,42 +218,84 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 		}
 
-		sql := SelectSQL(colsData, bucketsData, id, pull[id].Key, allowed) + FromSQL(id, joinsData, allowed)
-		if querySQL != "" {
-			sql += " where " + querySQL
-		}
-		if len(groupData) > 0 {
-			sql += " group by " + GroupSQL(groupData, bucketsData, allowed)
-		}
-		if len(sortData) > 0 {
-			sql += " order by " + SortSQL(sortData, allowed)
-		}
-		if limit != "" {
-			sql += " limit " + limit
-		}
+		result := make([]RawData, 0)
 
-		fmt.Println(sql)
-
-		rows, err := db.Queryx(sql, data...)
-		if err != nil {
-			format.Text(w, 500, err.Error())
-			return
-		}
-
-		t := make([]RawData, 0)
-		for rows.Next() {
-			res := make(map[string]interface{})
-			err = rows.MapScan(res)
-			if err != nil {
-				format.Text(w, 500, err.Error())
-				return
+		getSeries := func(facet Facet) []RawData {
+			sql := SelectSQL(colsData, bucketsData, id, pull[id].Key, allowed) + FromSQL(id, joinsData, allowed)
+			dataCopy := data
+			if facet.Column != "" {
+				dataCopy = append(dataCopy, facet.Value)
+				facetWhereSql := fmt.Sprintf("%s IN (?)", facet.Column)
+				if querySQL != "" {
+					sql += " where " + querySQL + " AND (" + facetWhereSql + ")"
+				} else {
+					sql += " where " + facetWhereSql
+				}
+			} else if querySQL != "" {
+				sql += " where " + querySQL
 			}
 
-			bytesToString(res)
-			t = append(t, res)
+			fmt.Println(querySQL)
+			fmt.Println(data)
+			if len(groupData) > 0 {
+				sql += " group by " + GroupSQL(groupData, bucketsData, allowed)
+			}
+			if len(sortData) > 0 {
+				sql += " order by " + SortSQL(sortData, allowed)
+			}
+			if limit != "" {
+				sql += " limit " + limit
+			}
+
+			fmt.Println(sql)
+
+			t := make([]RawData, 0)
+			rows, err := db.Queryx(sql, dataCopy...)
+			if err != nil {
+				format.Text(w, 500, err.Error())
+				return t
+			}
+
+			for rows.Next() {
+				res := make(map[string]interface{})
+				err = rows.MapScan(res)
+				if err != nil {
+					format.Text(w, 500, err.Error())
+					return t
+				}
+
+				bytesToString(res)
+				t = append(t, res)
+			}
+			return t
 		}
 
-		format.JSON(w, 200, t)
+		if len(facetData) > 0 {
+			columnName := facetData[0]
+			fInfo := getFacetInfo(columnName, db, limit)
+			values := fInfo["values"].([]string)
+			for _, value := range values {
+				var facet Facet
+				facet.Column = columnName
+				if fInfo["type"] == NumberField {
+					if s, err := strconv.ParseFloat(value, 64); err == nil {
+						facet.Value = s
+					}
+				} else {
+					facet.Value = value
+				}
+				fArr := []RawData{{"column": facet.Column, "value": facet.Value}}
+				facetItem := make(RawData)
+				facetItem["facets"] = fArr
+				facetItem["data"] = getSeries(facet)
+				result = append(result, facetItem)
+			}
+		} else {
+			var f Facet
+			result = getSeries(f)
+		}
+
+		format.JSON(w, 200, result)
 	})
 
 }
@@ -249,4 +307,27 @@ func containString(s []string, e string) bool {
 		}
 	}
 	return false
+}
+
+func getFacetInfo(facetColumn string, db *sqlx.DB, limit string) RawData {
+	facet := make(RawData)
+	parts := strings.Split(facetColumn, ".")
+	table := parts[0]
+	field := parts[1]
+	sql := fmt.Sprintf("select distinct %s from %s ORDER BY %s ASC", field, table, field)
+	if limit != "" {
+		sql += " limit " + limit
+	}
+	f, err := getFieldInfo(table, field)
+	if err != nil {
+		fmt.Printf("%+v", err)
+	}
+	out := make([]string, 0)
+	err = db.Select(&out, sql)
+	if err != nil {
+		fmt.Printf("%+v", err)
+	}
+	facet["values"] = out
+	facet["type"] = f.Type
+	return facet
 }
