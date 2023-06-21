@@ -221,11 +221,8 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 
 		getSeries := func(facet Facet) []RawData {
 			sql := SelectSQL(colsData, bucketsData, id, pull[id].Key, allowed) + FromSQL(id, joinsData, allowed)
-			dataCopy := data
 			if facet.Column != "" {
-				log.Printf(strings.Join(facet.Values, "','"))
-				dataCopy = append(dataCopy, strings.Join(facet.Values, ","))
-				facetWhereSql := fmt.Sprintf("%s IN (?)", facet.Column)
+				facetWhereSql := fmt.Sprintf("%s in ('%s')", facet.Column, strings.Join(facet.Values, "', '"))
 				if querySQL != "" {
 					sql += " where " + querySQL + " AND (" + facetWhereSql + ")"
 				} else {
@@ -248,13 +245,9 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 
 			fmt.Println(sql)
-			log.Printf(sql)
-			mData, _ := json.Marshal(dataCopy)
-			log.Printf(string(mData))
-
 			t := make([]RawData, 0)
 
-			rows, err := db.Queryx(sql, dataCopy...)
+			rows, err := db.Queryx(sql, data...)
 			if err != nil {
 				format.Text(w, 500, err.Error())
 				return t
@@ -276,8 +269,7 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 
 		if len(facetData) > 0 {
 			columnName := facetData[0]
-			fInfo := getFacetInfo(columnName, db, limit)
-			values := fInfo["values"].([]string)
+			values := getFacetValues(columnName, db, limit)
 
 			var bucket Bucket
 			for _, b := range bucketsData {
@@ -339,8 +331,7 @@ func containString(s []string, e string) bool {
 	return false
 }
 
-func getFacetInfo(facetColumn string, db *sqlx.DB, limit string) RawData {
-	facet := make(RawData)
+func getFacetValues(facetColumn string, db *sqlx.DB, limit string) []string {
 	parts := strings.Split(facetColumn, ".")
 	table := parts[0]
 	field := parts[1]
@@ -353,9 +344,7 @@ func getFacetInfo(facetColumn string, db *sqlx.DB, limit string) RawData {
 	if err != nil {
 		fmt.Printf("%+v", err)
 	}
-	facet["values"] = out
-
-	return facet
+	return out
 }
 
 func removeValues(vArr []string, valuesToRemove []string) []string {
