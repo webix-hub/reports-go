@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -26,7 +25,7 @@ type Bucket struct {
 
 type Facet struct {
 	Column string
-	Value  interface{}
+	Values []string
 }
 
 func dataAPI(r *chi.Mux, db *sqlx.DB) {
@@ -224,7 +223,8 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			sql := SelectSQL(colsData, bucketsData, id, pull[id].Key, allowed) + FromSQL(id, joinsData, allowed)
 			dataCopy := data
 			if facet.Column != "" {
-				dataCopy = append(dataCopy, facet.Value)
+				log.Printf(strings.Join(facet.Values, "','"))
+				dataCopy = append(dataCopy, strings.Join(facet.Values, ","))
 				facetWhereSql := fmt.Sprintf("%s IN (?)", facet.Column)
 				if querySQL != "" {
 					sql += " where " + querySQL + " AND (" + facetWhereSql + ")"
@@ -236,7 +236,7 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 
 			fmt.Println(querySQL)
-			fmt.Println(data)
+
 			if len(groupData) > 0 {
 				sql += " group by " + GroupSQL(groupData, bucketsData, allowed)
 			}
@@ -248,8 +248,12 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			}
 
 			fmt.Println(sql)
+			log.Printf(sql)
+			mData, _ := json.Marshal(dataCopy)
+			log.Printf(string(mData))
 
 			t := make([]RawData, 0)
+
 			rows, err := db.Queryx(sql, dataCopy...)
 			if err != nil {
 				format.Text(w, 500, err.Error())
@@ -274,22 +278,48 @@ func dataAPI(r *chi.Mux, db *sqlx.DB) {
 			columnName := facetData[0]
 			fInfo := getFacetInfo(columnName, db, limit)
 			values := fInfo["values"].([]string)
-			for _, value := range values {
-				var facet Facet
-				facet.Column = columnName
-				if fInfo["type"] == NumberField {
-					if s, err := strconv.ParseFloat(value, 64); err == nil {
-						facet.Value = s
-					}
-				} else {
-					facet.Value = value
+
+			var bucket Bucket
+			for _, b := range bucketsData {
+				if b.BucketColumn == columnName {
+					bucket = b
 				}
-				fArr := []RawData{{"column": facet.Column, "value": facet.Value}}
-				facetItem := make(RawData)
-				facetItem["facets"] = fArr
-				facetItem["data"] = getSeries(facet)
-				result = append(result, facetItem)
 			}
+			if bucket.BucketColumn != "" {
+
+				for _, o := range bucket.Options {
+					var bucketValues []string
+					if o.Values == nil {
+						bucketValues = values
+					} else {
+						values = removeValues(values, o.Values)
+						bucketValues = o.Values
+					}
+					var facet Facet
+					facet.Column = columnName
+					facet.Values = bucketValues
+					fArr := []RawData{{"column": columnName, "value": o.Id}}
+					facetItem := make(RawData)
+					facetItem["facets"] = fArr
+					facetItem["data"] = getSeries(facet)
+					result = append(result, facetItem)
+				}
+
+			} else {
+				for _, value := range values {
+					var facet Facet
+					facet.Column = columnName
+					facet.Values = make([]string, 0)
+					facet.Values = append(facet.Values, value)
+
+					fArr := []RawData{{"column": facet.Column, "value": value}}
+					facetItem := make(RawData)
+					facetItem["facets"] = fArr
+					facetItem["data"] = getSeries(facet)
+					result = append(result, facetItem)
+				}
+			}
+
 		} else {
 			var f Facet
 			result = getSeries(f)
@@ -318,16 +348,25 @@ func getFacetInfo(facetColumn string, db *sqlx.DB, limit string) RawData {
 	if limit != "" {
 		sql += " limit " + limit
 	}
-	f, err := getFieldInfo(table, field)
-	if err != nil {
-		fmt.Printf("%+v", err)
-	}
 	out := make([]string, 0)
-	err = db.Select(&out, sql)
+	err := db.Select(&out, sql)
 	if err != nil {
 		fmt.Printf("%+v", err)
 	}
 	facet["values"] = out
-	facet["type"] = f.Type
+
 	return facet
+}
+
+func removeValues(vArr []string, valuesToRemove []string) []string {
+	values := vArr
+	for _, vr := range valuesToRemove {
+		for i, v := range values {
+			if v == vr {
+				values = append(values[:i], values[i+1:]...)
+			}
+
+		}
+	}
+	return values
 }
